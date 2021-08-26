@@ -89,11 +89,6 @@ pub fn clean(ws: &Workspace<'_>, opts: &CleanOptions<'_>) -> CargoResult<()> {
             .chain(layouts.iter().map(|(k, l)| (*k, *l)))
             .collect();
 
-    // Cleaning individual rustdoc crates is currently not supported.
-    // For example, the search index would need to be rebuilt to fully
-    // remove it (otherwise you're left with lots of broken links).
-    // Doc tests produce no output.
-
     // Get Packages for the specified specs.
     let mut pkg_ids = Vec::new();
     for spec_str in opts.spec.iter() {
@@ -134,7 +129,18 @@ pub fn clean(ws: &Workspace<'_>, opts: &CleanOptions<'_>) -> CargoResult<()> {
     let packages = pkg_set.get_many(pkg_ids)?;
 
     for pkg in packages {
+        let pkg_name = pkg.name();
         let pkg_dir = format!("{}-*", pkg.name());
+
+        // Clean individual rustdoc crates
+        for (_, layout) in &layouts_with_host {
+            let doc_path = layout.doc();
+            let doc_src_path = layout.src();
+            // clean target/doc/package
+            rm_rf(&doc_path.join(&pkg_name), config)?;
+            // clean target/doc/src/package
+            rm_rf(&doc_src_path.join(&pkg_name), config)?;
+        }
 
         // Clean fingerprints.
         for (_, layout) in &layouts_with_host {
