@@ -72,6 +72,7 @@ impl<N: Hash + Eq + Clone, E: Eq + Hash + Clone, V> DependencyQueue<N, E, V> {
     /// this node. This implementation does not care about the units of this value, so
     /// the calling code is free to use whatever they'd like. In general, higher cost
     /// nodes are expected to take longer to build.
+    /// 在队列中添加新的节点和它的依赖
     pub fn queue(
         &mut self,
         key: N,
@@ -97,6 +98,7 @@ impl<N: Hash + Eq + Clone, E: Eq + Hash + Clone, V> DependencyQueue<N, E, V> {
 
     /// All nodes have been added, calculate some internal metadata and prepare
     /// for `dequeue`.
+    /// 所有的节点都已添加计算内部的元数据准备出队
     pub fn queue_finished(&mut self) {
         let mut out = HashMap::new();
         for key in self.dep_map.keys() {

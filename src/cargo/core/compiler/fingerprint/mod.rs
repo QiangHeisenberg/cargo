@@ -1,10 +1,12 @@
 //! Tracks changes to determine if something needs to be recompiled.
+//! 跟踪更改以确定是否需要重新编译
 //!
 //! This module implements change-tracking so that Cargo can know whether or
 //! not something needs to be recompiled. A Cargo [`Unit`] can be either "dirty"
 //! (needs to be recompiled) or "fresh" (it does not need to be recompiled).
 //!
 //! ## Mechanisms affecting freshness
+//! 影响freshness的机制
 //!
 //! There are several mechanisms that influence a Unit's freshness:
 //!
@@ -14,24 +16,32 @@
 //!   compiled), then the unit is dirty. If any of the fingerprint fields
 //!   change (like the name of the source file), then the Unit is considered
 //!   dirty.
+//!   Fingerprint是一个哈希值，保存到文件系统的 `.fingerprint` 目录中，用于跟踪有关该单元的信息。
 //!
 //!   The `Fingerprint` also tracks the fingerprints of all its dependencies,
 //!   so a change in a dependency will propagate the "dirty" status up.
+//!   如果指纹不存在（例如第一次编译），那么则为dirty
 //!
 //! - Filesystem mtime tracking is also used to check if a unit is dirty.
 //!   See the section below on "Mtime comparison" for more details. There
 //!   are essentially two parts to mtime tracking:
+//!   如果任何一个指纹字段发生变化，则为dirty
 //!
 //!   1. The mtime of a Unit's output files is compared to the mtime of all
 //!      its dependencies' output file mtimes (see
 //!      [`check_filesystem`]). If any output is missing, or is
 //!      older than a dependency's output, then the unit is dirty.
+//!      比较单元输出文件的 mtime 和其所有依赖项输出文件的 mtime,
+//!      如果任何输出丢失，或者比依赖项的输出更旧，则该unit是dirty。
 //!   2. The mtime of a Unit's source files is compared to the mtime of its
 //!      dep-info file in the fingerprint directory (see [`find_stale_file`]).
 //!      The dep-info file is used as an anchor to know when the last build of
 //!      the unit was done. See the "dep-info files" section below for more
 //!      details. If any input files are missing, or are newer than the
 //!      dep-info, then the unit is dirty.
+//!      比较单元源文件的 mtime 和其指纹目录中的 dep-info 文件的 mtime 
+//!      如果输入文件丢失或者输入文件比 dep-info 新，则该unit是dirty
+//!      注：dep-info 文件用作锚点来了解单元的最后一次构建何时完成。
 //!
 //! Note: Fingerprinting is not a perfect solution. Filesystem mtime tracking
 //! is notoriously imprecise and problematic. Only a small part of the
@@ -40,6 +50,7 @@
 //! access, environment variable, and network operation would ensure more
 //! reliable and reproducible builds at the cost of being complex, slow, and
 //! platform-dependent.
+//! 指纹方案并不是完美的解决方案但是失去的平衡的妥协
 //!
 //! ## Fingerprints and Metadata
 //!
@@ -55,6 +66,9 @@
 //! The Fingerprint includes additional information that should cause a
 //! recompile, but it is desired to reuse the same filenames. A comparison
 //! of what is tracked:
+//! 指纹和元数据很相似，跟踪一些相同的东西；
+//! 指纹包含导致重新编译的信息；元数据包含保持单元独立需要的信息
+//! 两者的比较：
 //!
 //! Value                                      | Fingerprint | Metadata
 //! -------------------------------------------|-------------|----------
@@ -106,21 +120,26 @@
 //! Fingerprint information is stored in the
 //! `target/{debug,release}/.fingerprint/` directory. Each Unit is stored in a
 //! separate directory. Each Unit directory contains:
+//! 指纹信息存储在target/{debug,release}/.fingerprint/中，每一个unit包含以下内容：
 //!
 //! - A file with a 16 hex-digit hash. This is the Fingerprint hash, used for
 //!   quick loading and comparison.
+//!   具有 16 位十六进制数字哈希值的文件。这是指纹哈希，用于快速加载和比较。
 //! - A `.json` file that contains details about the Fingerprint. This is only
 //!   used to log details about *why* a fingerprint is considered dirty.
 //!   `CARGO_LOG=cargo::core::compiler::fingerprint=trace cargo build` can be
 //!   used to display this log information.
+//!   .json文件，记录指纹的详细信息（变成dirty的原因）
 //! - A "dep-info" file which is a translation of rustc's `*.d` dep-info files
 //!   to a Cargo-specific format that tweaks file names and is optimized for
 //!   reading quickly.
+//!   一个dep-info文件，它是 rustc 的 `*.d` dep-info 文件到 Cargo 特定格式的翻译
 //! - An `invoked.timestamp` file whose filesystem mtime is updated every time
 //!   the Unit is built. This is used for capturing the time when the build
 //!   starts, to detect if files are changed in the middle of the build. See
 //!   below for more details.
-//!
+//!   invoked.timestamp文件，其文件系统 mtime 在每次构建单元时更新。
+//!   用于捕获构建开始的时间，以检测文件是否在构建过程中发生更改
 //! Note that some units are a little different. A Unit for *running* a build
 //! script or for `rustdoc` does not have a dep-info file (it's not
 //! applicable). Build script `invoked.timestamp` files are in the build
@@ -134,12 +153,15 @@
 //! on-disk when the Unit successfully finishes. The closure will recompute the
 //! Fingerprint based on the updated information. If the Unit fails to compile,
 //! the fingerprint is not updated.
+//  再向jobqueue中添加每一个unit的时候都会计算指纹状态并记录状态。
+//  unit编译完成后，更新指纹状态；编译失败，不会更新指纹
 //!
 //! Fingerprints are cached in the [`BuildRunner`]. This makes computing
 //! Fingerprints faster, but also is necessary for properly updating
 //! dependency information. Since a Fingerprint includes the Fingerprints of
 //! all dependencies, when it is updated, by using `Arc` clones, it
 //! automatically picks up the updates to its dependencies.
+//  指纹缓存在BuildRunner中
 //!
 //! ### dep-info files
 //!
@@ -167,6 +189,7 @@
 //! After `rustc` exits successfully, Cargo will read the first kind of dep
 //! info file and translate it into a binary format that is stored in the
 //! fingerprint directory ([`translate_dep_info`]).
+// rustc 成功退出后，Cargo 将读取第一种 dep info 文件并将其转换为二进制格式存储在指纹目录translate_dep_info中。
 //!
 //! These are used to quickly scan for any changed files. The mtime of the
 //! fingerprint dep-info file itself is used as the reference for comparing the
@@ -177,6 +200,8 @@
 //! files to learn about environment variables that the rustc compile depends on.
 //! Cargo then later uses this to trigger a recompile if a referenced env var
 //! changes (even if the source didn't change).
+// Cargo会解析 dep-info 文件中特殊的“#env-var:...”注释，以了解 rustc 编译所依赖的环境变量。
+// 如果引用的环境变量发生变化（即使源没有改变），Cargo 稍后会使用它来触发重新编译。
 //!
 //! #### dep-info files for build system integration.
 //!
@@ -184,6 +209,8 @@
 //! rustc with some additional information and saves this into the output
 //! directory. This is intended for build system integration. See the
 //! [`output_depinfo`] function for more detail.
+// Cargo 将使用一些附加信息扩展 rustc 创建的文件，并将其保存到输出目录中。
+// 这是为了构建系统集成。
 //!
 //! #### -Zbinary-dep-depinfo
 //!
@@ -206,6 +233,7 @@
 //!
 //! The status of whether or not the mtime is "stale" or "up-to-date" is
 //! stored in [`Fingerprint::fs_status`].
+// mtime 是“陈旧”还是“最新”的状态是存储在 [`Fingerprint::fs_status`] 中。
 //!
 //! All units will compare the mtime of its newest output file with the mtimes
 //! of the outputs of all its dependencies. If any output file is missing,
@@ -302,19 +330,29 @@
 //! "old style" mode where an mtime change of *any* file in the package will
 //! cause the build script to be re-run. Otherwise, the fingerprint *only*
 //! tracks the individual "rerun-if" items listed by the build script.
+// 构建脚本的运行的处理方式和其他 unit 不同。他有自己的计算指纹的函数和独特的考虑因素
+// 它跟踪的信息取决于构建脚本生成的 “rerun-if-changed” 和 “rerun-if-env-changed” 语句。
+// 如果脚本中没有发出这些语句中的任何一个，则指纹将以旧模式运行；如果任何文件发生了改变，都会导致构建脚本的重新运行
+// 否则，指纹将仅跟踪构建脚本列出的各个 rerun-if 项
 //!
 //! The "rerun-if" statements from a *previous* build are stored in the build
 //! output directory in a file called `output`. Cargo parses this file when
 //! the Unit for that build script is prepared for the [`JobQueue`]. The
 //! Fingerprint code can then use that information to compute the Fingerprint
 //! and compare against the old fingerprint hash.
+// 来自*先前*构建的“rerun-if”语句存储在构建输出目录中名为“output”的文件中。
+// 当为 [`JobQueue`] 准备好该构建脚本的单元时，Cargo 会解析此文件。
+// 然后，指纹代码可以使用该信息来计算指纹并与旧指纹哈希进行比较。
 //!
 //! Care must be taken with build script Fingerprints because the
 //! [`Fingerprint::local`] value may be changed after the build script runs
 //! (such as if the build script adds or removes "rerun-if" items).
+// 必须小心构建脚本 Fingerprints，因为在构建脚本运行后 Fingerprint::local 值可能会更改
+// （例如，如果构建脚本添加或删除“rerun-if”项）。
 //!
 //! Another complication is if a build script is overridden. In that case, the
 //! fingerprint is the hash of the output of the override.
+// 另一个复杂的情况是构建脚本是否被覆盖。在这种情况下，指纹是覆盖输出的哈希值。
 //!
 //! ## Special considerations
 //!
@@ -706,6 +744,8 @@ impl<'de> Deserialize<'de> for DepFingerprint {
 /// when the filesystem contains stale information (based on mtime currently).
 /// The paths here don't change much between compilations but they're used as
 /// inputs when we probe the filesystem looking at information.
+// LocalFingerprint 代表我们用来检测“Fingerprint”的直接更改的东西。
+// local指的是它只与一个箱子有关，并且“指纹”跟踪指纹更改的传递传播。
 #[derive(Debug, Serialize, Deserialize, Hash)]
 enum LocalFingerprint {
     /// This is a precalculated fingerprint which has an opaque string we just
@@ -715,6 +755,8 @@ enum LocalFingerprint {
     /// This is also used for build scripts with no `rerun-if-*` statements, but
     /// that's overall a mistake and causes bugs in Cargo. We shouldn't use this
     /// for build scripts.
+    // 此变体主要用于rustdoc；也用于没有没有“rerun-if-*”语句的构建脚本
+    // 但这总体上是一个错误，并会导致 Cargo 中的错误。我们不应该将其用于构建脚本。
     Precalculated(String),
 
     /// This is used for crate compilations. The `dep_info` file is a relative
@@ -725,6 +767,9 @@ enum LocalFingerprint {
     /// The `dep_info` file, when present, also lists a number of other files
     /// for us to look at. If any of those files are newer than this file then
     /// we need to recompile.
+    // 用于crate编译；
+    // dep_info 文件是锚定在 target_root(...) 处到 Cargo 生成的 dep-info 文件的相对路径
+    // dep_info 文件（如果存在）还列出了许多其他文件供我们查看。如果这些文件中的任何一个比该文件新，那么我们需要重新编译。
     CheckDepInfo { dep_info: PathBuf },
 
     /// This represents a nonempty set of `rerun-if-changed` annotations printed
@@ -736,6 +781,8 @@ enum LocalFingerprint {
     ///
     /// This is considered up-to-date if all of the `paths` are older than
     /// `output`, otherwise we need to recompile.
+    // 这表示由构建脚本打印出的一组非空“rerun-if-changed”注释。
+    // 没怎么看懂注释的其他内容
     RerunIfChanged {
         output: PathBuf,
         paths: Vec<PathBuf>,
@@ -745,6 +792,9 @@ enum LocalFingerprint {
     /// build script. The exact env var and value are hashed here. There's no
     /// filesystem dependence here, and if the values are changed the hash will
     /// change forcing a recompile.
+    // 这表示由构建脚本打印的单个“rerun-if-env-changed”注释。
+    // 确切的环境变量和值在此处进行哈希处理。
+    // 这里不存在文件系统依赖性，如果值发生更改，哈希值也会发生变化，从而强制重新编译。
     RerunIfEnvChanged { var: String, val: Option<String> },
 }
 
@@ -1477,6 +1527,7 @@ fn calculate_normal(
 
 /// Calculate a fingerprint for an "execute a build script" unit.  This is an
 /// internal helper of [`calculate`], don't call directly.
+// 构建脚本计算指纹的方式
 fn calculate_run_custom_build(
     build_runner: &mut BuildRunner<'_, '_>,
     unit: &Unit,
@@ -1488,6 +1539,9 @@ fn calculate_run_custom_build(
     // the build script this means we'll be watching files and env vars.
     // Otherwise if we haven't previously executed it we'll just start watching
     // the whole crate.
+    // 使用之前解析并插入到“build_explicit_deps”中的“BuildDeps”信息构建了此构建脚本的“LocalFingerprint”列表。
+    // 如果我们之前执行了构建脚本，这意味着我们将监视文件和环境变量。
+    // 如果我们之前没有执行过构建脚本，我们将开始观察整个crate。
     let (gen_local, overridden) = build_script_local_fingerprints(build_runner, unit);
     let deps = &build_runner.build_explicit_deps[unit];
     let local = (gen_local)(
@@ -1516,26 +1570,34 @@ See https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-change
     // compilation of the build script itself. (if the build script changes we
     // should be rerun!). Note though that if we're an overridden build script
     // we have no dependencies so no need to recurse in that case.
+    // 包括我们执行的任何依赖项，这通常只是构建脚本本身的编译。
+    // 但请注意，如果我们是重写的构建脚本，则我们没有依赖项，因此在这种情况下不需要递归。
     let deps = if overridden {
         // Overridden build scripts don't need to track deps.
         vec![]
     } else {
         // Create Vec since mutable build_runner is needed in closure.
+        // 创建 Vec，因为闭包中需要可变的 build_runner。
         let deps = Vec::from(build_runner.unit_deps(unit));
         deps.into_iter()
             .map(|dep| DepFingerprint::new(build_runner, unit, &dep))
             .collect::<CargoResult<Vec<_>>>()?
     };
 
+    // 检查输入构建脚本的环境变量
+    let rustflags = ;
+
     Ok(Fingerprint {
         local: Mutex::new(local),
         rustc: util::hash_u64(&build_runner.bcx.rustc().verbose_version),
         deps,
         outputs: if overridden { Vec::new() } else { vec![output] },
+        rustflags,
 
         // Most of the other info is blank here as we don't really include it
         // in the execution of the build script, but... this may be a latent
         // bug in Cargo.
+        // 大多数其他信息在这里都是空白的，因为我们并没有真正将其包含在构建脚本的执行中，但是......这可能是 Cargo 中的一个潜在错误。
         ..Fingerprint::new()
     })
 }
@@ -1552,12 +1614,15 @@ See https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-change
 /// the `LocalFingerprint` values for this unit. It is `Send` and `'static` to
 /// be sent to other threads as well (such as when we're executing build
 /// scripts). That deduplication is the rationale for the closure at least.
+// 此闭包旨在捕获计算该单元的“LocalFingerprint”值所需的任何本地状态。
 ///
 /// The arguments to the closure are a bit weirder, though, and I'll apologize
 /// in advance for the weirdness too. The first argument to the closure is a
 /// `&BuildDeps`. This is the parsed version of a build script, and when Cargo
 /// starts up this is cached from previous runs of a build script.  After a
 /// build script executes the output file is reparsed and passed in here.
+// 闭包的第一个参数是“&BuildDeps”。这是构建脚本的解析版本，当 Cargo 启动时，它会从之前运行的构建脚本中缓存下来。
+// 构建脚本执行后，输出文件将被重新解析并传递到此处。
 ///
 /// The second argument is the weirdest, it's *optionally* a closure to
 /// call [`pkg_fingerprint`]. The `pkg_fingerprint` requires access to
@@ -1576,6 +1641,7 @@ See https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-change
 /// FIXME(#6779) - see all the words above
 ///
 /// [`RunCustomBuild`]: crate::core::compiler::CompileMode::RunCustomBuild
+// 准备好计算 [`RunCustomBuild`] 单元的 [`LocalFingerprint`] 值。
 fn build_script_local_fingerprints(
     build_runner: &mut BuildRunner<'_, '_>,
     unit: &Unit,

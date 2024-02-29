@@ -38,12 +38,14 @@ impl<T> Queue<T> {
     }
 
     /// Pushes an item onto the queue, regardless of the capacity of the queue.
+    /// 将 item 推送到队列中，无论队列的容量如何。
     pub fn push(&self, item: T) {
         self.state.lock().unwrap().items.push_back(item);
         self.popper_cv.notify_one();
     }
 
     /// Pushes an item onto the queue, blocking if the queue is full.
+    /// 将item推送到队列中，如果队列已满则阻塞。
     pub fn push_bounded(&self, item: T) {
         let locked_state = self.state.lock().unwrap();
         let mut state = self

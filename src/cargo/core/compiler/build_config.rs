@@ -185,6 +185,7 @@ pub enum CompileMode {
     /// An example or library that will be scraped for function calls by `rustdoc`.
     Docscrape,
     /// A marker for Units that represent the execution of a `build.rs` script.
+    // 表示执行构建脚本
     RunCustomBuild,
 }
 

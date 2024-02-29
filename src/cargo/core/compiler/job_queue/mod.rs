@@ -163,6 +163,7 @@ pub struct JobQueue<'gctx> {
 ///
 /// It is created from JobQueue when we have fully assembled the crate graph
 /// (i.e., all package dependencies are known).
+/// 管理每一个包的编译步骤
 struct DrainState<'gctx> {
     // This is the length of the DependencyQueue when starting out
     total_units: usize,
@@ -436,6 +437,7 @@ impl<'gctx> JobQueue<'gctx> {
         // `Metadata` propagate upwards `All` dependencies to anything that
         // transitively contains the `Metadata` edge.
         if unit.requires_upstream_objects() {
+            // 如果需要上游的依赖全部完成，那么执行以下
             for dep in dependencies {
                 depend_on_deps_of_deps(build_runner, &mut queue_deps, dep.unit.clone());
             }
@@ -738,6 +740,7 @@ impl<'gctx> DrainState<'gctx> {
     ///
     /// This returns an Option to prevent the use of `?` on `Result` types
     /// because it is important for the loop to carefully handle errors.
+    /// cargo在这里完成运行编译器的所有工作
     fn drain_the_queue<'s>(
         mut self,
         build_runner: &mut BuildRunner<'_, '_>,

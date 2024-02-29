@@ -141,14 +141,18 @@ pub struct BuildScripts {
 
 /// Dependency information as declared by a build script that might trigger
 /// a recompile of itself.
+// 构建脚本声明的依赖信息可能会触发自身重新编译。
 #[derive(Debug)]
 pub struct BuildDeps {
     /// Absolute path to the file in the target directory that stores the
     /// output of the build script.
+    // 目标目录中存储构建脚本输出的文件的绝对路径。
     pub build_script_output: PathBuf,
     /// Files that trigger a rebuild if they change.
+    // 如果文件发生更改，则会触发重建。
     pub rerun_if_changed: Vec<PathBuf>,
     /// Environment variables that trigger a rebuild if they change.
+    // 如果环境变量发生变化，则会触发重建。
     pub rerun_if_env_changed: Vec<String>,
 }
 

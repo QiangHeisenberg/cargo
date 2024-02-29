@@ -46,6 +46,8 @@ pub struct BuildRunner<'a, 'gctx> {
     /// Dependencies (like rerun-if-changed) declared by a build script.
     /// This is *only* populated from the output from previous runs.
     /// If the build script hasn't ever been run, then it must be run.
+    // 由构建脚本声明的依赖项（例如 rerun-if-changed）。
+    // 如果构建脚本从未运行过，则必须运行它。
     pub build_explicit_deps: HashMap<Unit, BuildDeps>,
     /// Fingerprints used to detect if a unit is out-of-date.
     pub fingerprints: HashMap<Unit, Arc<Fingerprint>>,
