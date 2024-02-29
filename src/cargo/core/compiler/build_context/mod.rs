@@ -43,6 +43,8 @@ pub use self::target_info::{
 ///
 /// [`BuildRunner`]: crate::core::compiler::BuildRunner
 /// [`ops::create_bcx`]: crate::ops::create_bcx
+// 构建上下文，包含构建任务开始之前所需的完整信息。
+// 主要是构建任务的静态信息
 pub struct BuildContext<'a, 'gctx> {
     /// The workspace the build is for.
     pub ws: &'a Workspace<'gctx>,
@@ -135,6 +137,7 @@ impl<'a, 'gctx> BuildContext<'a, 'gctx> {
     }
 
     /// Extra compiler flags to pass to `rustc` for a given unit.
+    // 对于给定单元，传递给“rustc”的额外rustflag
     ///
     /// Although it depends on the caller, in the current Cargo implementation,
     /// these flags take precedence over those from [`BuildContext::extra_args_for`].

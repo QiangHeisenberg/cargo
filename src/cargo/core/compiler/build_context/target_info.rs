@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 use std::str::{self, FromStr};
 
 /// Information about the platform target gleaned from querying rustc.
+// 通过查询 rustc 收集的有关平台目标的信息。
 ///
 /// [`RustcTargetData`] keeps several of these, one for the host and the others
 /// for other specified targets. If no target is specified, it uses a clone from
