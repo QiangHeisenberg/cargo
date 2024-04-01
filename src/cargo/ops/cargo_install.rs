@@ -81,6 +81,7 @@ impl<'gctx> InstallablePackage<'gctx> {
 
         let dst = root.join("bin").into_path_unlocked();
         let pkg = {
+            // dep 应该是要安装crate的依赖项
             let dep = {
                 if let Some(krate) = krate {
                     let vers = if let Some(vers) = vers {
@@ -92,8 +93,10 @@ impl<'gctx> InstallablePackage<'gctx> {
                     } else {
                         None
                     };
+                    // 根据名称+版本返回依赖的详细情况
                     Some(Dependency::parse(krate, vers.as_deref(), source_id)?)
                 } else {
+                    // 没有指定crate名
                     None
                 }
             };
