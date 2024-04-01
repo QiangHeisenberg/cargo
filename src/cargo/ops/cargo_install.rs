@@ -101,6 +101,7 @@ impl<'gctx> InstallablePackage<'gctx> {
                 }
             };
 
+            // source_id 指的是安装的crate 的唯一信息，包括来源、分支、url等一些信息
             if source_id.is_git() {
                 let mut source = GitSource::new(source_id, gctx)?;
                 select_pkg(
